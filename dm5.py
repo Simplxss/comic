@@ -28,12 +28,21 @@ def auto(id, cname):
 
     response = requests.get(f'{DOMAIN}/{id}/', verify=False)
 
+    response = requests.get(f'{DOMAIN}/{id}/', verify=False)
     html = etree.HTML(response.text)
 
-    chapter_name_list = html.xpath(
-        '//div[@id="chapterlistload"]/ul/li/a/text()[1]')
-    chapter_url_list = html.xpath(
-        '//div[@id="chapterlistload"]/ul/li/a/@href')
+    chapter_name_list=[]
+    chapter_url_list = []
+
+    chapter_name_list.extend(html.xpath(
+        '//div[@id="chapterlistload"]/ul/li/a/text()[1]'))
+    chapter_url_list.extend(html.xpath(
+        '//div[@id="chapterlistload"]/ul/li/a/@href'))
+
+    chapter_name_list.extend(html.xpath(
+        '//ul[@class="chapteritem"]/li/a/text()[1]'))
+    chapter_url_list.extend(html.xpath(
+        '//ul[@class="chapteritem"]/li/a/@href'))
 
     task_list = []
 
