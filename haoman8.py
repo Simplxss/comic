@@ -8,10 +8,7 @@ import json
 
 from lxml import etree
 
-import urllib3
-urllib3.disable_warnings()
-
-domain='https://www.haoman6.com'
+DOMAIN='https://www.haoman6.com'
 
 s = requests.session()
 s.headers['sec-ch-ua'] = '''"Chromium";v="104", " Not A;Brand";v="99", "Google Chrome";v="104"'''
@@ -51,7 +48,7 @@ def downloadImage(page_filename, page_url):
     r.headers['Sec-Fetch-Dest'] = '''document'''
     r.headers['Accept-Language'] = '''zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7'''
     r.headers['Accept-Encoding'] = '''gzip, deflate'''
-    r.verify = False   # verify去除ssl认证
+    r.verify = False
     res = r.get(page_url)
     file = open(page_filename, 'wb')
     file.write(res.content)
@@ -63,10 +60,10 @@ def auto(id, cname):
     os.chdir(f'.\\{cname}')
 
     response = s.get(
-        f'{domain}/index.php/api/comic/chapter?callback=jQuery22409587119493178364_1656338964920&mid={id}&_=1656338964921')
+        f'{DOMAIN}/index.php/api/comic/chapter?callback=jQuery22409587119493178364_1656338964920&mid={id}&_=1656338964921')
 
     chapter_list = json.loads(re.findall(
-        r'(?<=jQuery22409587119493178364_1656338964920\().*?(?=\);)', response.content.decode())[0])
+        r'(?<=jQuery22409587119493178364_1656338964920\().*?(?=\);)', response.text)[0])
 
     task_list = []
 
@@ -81,9 +78,9 @@ def auto(id, cname):
 
         print(chapter_name)
 
-        response = s.get(f'{domain}{chapter_url}')
+        response = s.get(f'{DOMAIN}{chapter_url}')
 
-        myhtml = etree.HTML(response.content.decode())
+        myhtml = etree.HTML(response.text)
 
         page_url_list = myhtml.xpath(
             "//div[@class='acgn-reader-chapter__swiper-box']/a/img/@data-echo")

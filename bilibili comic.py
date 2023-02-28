@@ -16,14 +16,14 @@ def transCookie(cookie):
 
 def downloadImage(token, path):
     file = open(path, 'wb')
-    res = requests.get(token, verify=False)
+    res = requests.get(token)
     file.write(res.content)
 
 
 def getComicDetail(cid):
     url = f"{DOMAIN}/twirp/comic.v1.Comic/ComicDetail?device=pc&platform=web"
     postdata = {'comic_id': cid}
-    res = requests.post(url, data=postdata, cookies=cookie, verify=False)
+    res = requests.post(url, data=postdata, cookies=cookie)
     ret = json.loads(res.text)
     if not os.path.exists('cover.jpg'):
         downloadImage(ret['data']['vertical_cover'], 'cover.jpg')
@@ -39,7 +39,7 @@ def getComicDetail(cid):
 def getEpImageIndex(epid):
     url = f"{DOMAIN}/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web"
     postdata = {'ep_id': epid}
-    res = requests.post(url, data=postdata, cookies=cookie, verify=False)
+    res = requests.post(url, data=postdata, cookies=cookie)
     index = json.loads(res.text)
     return index['data']['images']
 
@@ -49,7 +49,7 @@ def getImageToken(path):
     path += '@1100w.jpg'
 
     postdict = {"urls": f"[\"{path}\"]"}
-    res = requests.post(url, data=postdict, cookies=cookie, verify=False)
+    res = requests.post(url, data=postdict, cookies=cookie)
     token = json.loads(res.text)['data'][0]
     return token['url'] + "?token=" + token['token']
 

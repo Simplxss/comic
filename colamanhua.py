@@ -6,9 +6,6 @@ import requests
 
 from lxml import etree
 
-import urllib3
-urllib3.disable_warnings()
-
 DOMAIN = 'https://www.colamanhua.com'
 
 s = requests.session()
@@ -24,7 +21,6 @@ s.headers['Sec-Fetch-User'] = '''?1'''
 s.headers['Sec-Fetch-Dest'] = '''document'''
 s.headers['Accept-Language'] = '''zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7'''
 s.headers['Accept-Encoding'] = '''gzip, deflate'''
-
 
 pool = ThreadPoolExecutor(max_workers=4)
 
@@ -50,7 +46,6 @@ def downloadImage(page_filename, page_url):
     r.headers['Sec-Fetch-Dest'] = '''document'''
     r.headers['Accept-Language'] = '''zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7'''
     r.headers['Accept-Encoding'] = '''gzip, deflate'''
-    r.verify = False   # verify去除ssl认证
     res = r.get(page_url)
     file = open(page_filename, 'wb')
     file.write(res.content)
