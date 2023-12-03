@@ -3,9 +3,10 @@ import os
 import re
 import time
 import base64
-from curl_cffi import requests
 from lxml import etree
+from curl_cffi import requests
 from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
 DOMAIN = "https://www.colamanga.com"
@@ -3025,25 +3026,13 @@ def download(url, Referer):
 
 pool = ThreadPoolExecutor(max_workers=4)
 
-
-def pkcs7_unpad(s):
-    """
-    unpadding according to PKCS #7
-    @param s: string to unpad
-    @type s: byte
-    @rtype: byte
-    """
-    sd = -(s[-1])
-    return s[0:sd]
-
-
 def decrypt_ecb(data, key):
     cipher = AES.new(key, AES.MODE_ECB)
-    return pkcs7_unpad(cipher.decrypt(data))
+    return unpad(cipher.decrypt(data), AES.block_size)
 
 def decrypt_cbc(data, key):
     cipher = AES.new(key, AES.MODE_CBC, iv=b"0000000000000000")
-    return pkcs7_unpad(cipher.decrypt(data))
+    return unpad(cipher.decrypt(data), AES.block_size)
 
 def E_trans_to_C(string):
     E_pun = "*,!?"
@@ -3108,20 +3097,21 @@ def auto(id, cname):
             b"7bxIyR0nLydU9vlQ",
         ).decode()  # _tkb_ + mh_info["pageid"]
 
+        if imgKey != "":
+            imgKey = base64.b64decode(imgKey)
+            imgKey = decrypt_ecb(
+                imgKey,
+                b"NhDvbPWFVjc326Qs",
+            )
 
         for page in range(int(startimg), int(_tkb_) + 1):
-            if keyType != '0':
+            if keyType != '0' and keyType != "":
                 task_list.append(
                     pool.submit(downloadImage, f".\\{page}.webp", f"{DOMAIN_IMG}/comic/{_tka_}{page:0>4d}.enc.webp", chapter_url, KEY_TABLE[keyType])
                 )
             elif imgKey != "":
-                imgKey = base64.b64decode(imgKey)
-                imgKey = decrypt_ecb(
-                    imgKey,
-                    b"NhDvbPWFVjc326Qs",
-                ).decode()
                 task_list.append(
-                    pool.submit(downloadImage, f".\\{page}.webp", f"{DOMAIN_IMG}/comic/{_tka_}{page:0>4d}.enc.webp", chapter_url, imgKey.encode())
+                    pool.submit(downloadImage, f".\\{page}.webp", f"{DOMAIN_IMG}/comic/{_tka_}{page:0>4d}.enc.webp", chapter_url, imgKey)
                 )
             else:
                 task_list.append(
