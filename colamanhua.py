@@ -3108,11 +3108,6 @@ def auto(id, cname):
             b"7bxIyR0nLydU9vlQ",
         ).decode()  # _tkb_ + mh_info["pageid"]
 
-        imgKey = base64.b64decode(imgKey)
-        imgKey = decrypt_ecb(
-            imgKey,
-            b"NhDvbPWFVjc326Qs",
-        ).decode()
 
         for page in range(int(startimg), int(_tkb_) + 1):
             if keyType != '0':
@@ -3120,6 +3115,11 @@ def auto(id, cname):
                     pool.submit(downloadImage, f".\\{page}.webp", f"{DOMAIN_IMG}/comic/{_tka_}{page:0>4d}.enc.webp", chapter_url, KEY_TABLE[keyType])
                 )
             elif imgKey != "":
+                imgKey = base64.b64decode(imgKey)
+                imgKey = decrypt_ecb(
+                    imgKey,
+                    b"NhDvbPWFVjc326Qs",
+                ).decode()
                 task_list.append(
                     pool.submit(downloadImage, f".\\{page}.webp", f"{DOMAIN_IMG}/comic/{_tka_}{page:0>4d}.enc.webp", chapter_url, imgKey.encode())
                 )
