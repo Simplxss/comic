@@ -8,7 +8,7 @@ import json
 
 from lxml import etree
 
-DOMAIN='https://www.haoman6.com'
+DOMAIN='https://www.haoman8.com'
 
 s = requests.session()
 s.headers['sec-ch-ua'] = '''"Chromium";v="104", " Not A;Brand";v="99", "Google Chrome";v="104"'''
