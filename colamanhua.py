@@ -6,7 +6,7 @@ import base64
 from lxml import etree
 from collections import deque
 from curl_cffi import requests
-from Crypto.Cipher import AES
+from Crypto.Cipher import AES, ARC4
 from Crypto.Util.Padding import unpad
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
@@ -34,8 +34,17 @@ def decrypt_cbc(data, key):
     return unpad(cipher.decrypt(data), AES.block_size)
 
 
-def decode_str(N):
-    data = aK[N - 0x1F0]
+def decrypt_arc4(data, key):
+    print(data)
+    data = bytes(data, encoding="utf-8")
+    key = bytes(key, encoding="utf-8")
+    cipher = ARC4.new(key)
+
+    a = cipher.decrypt(data)
+    return a
+
+
+def decode_const(data):
     missing_padding = 4 - len(data) % 4
     if missing_padding != 4:
         data += "=" * missing_padding
@@ -57,17 +66,30 @@ def downloadImage(page_filename, page_url, Referer, key):
     file.write(decrypt_cbc(res.content, key))
 
 
-cal = lambda N: int(re.match(r"^\d+", decode_str(N).decode()).group())
-
-js = visit(f"{DOMAIN}/js/manga.read.js")
-aK = deque([i[1:-1] for i in re.findall(r"var aK=\[(.*?)\];", js.text)[0].split(",")])
-table = re.findall(r"G==ag\((0x[0-9a-f]*?)\)&&\(I=ag\((0x[0-9a-f]*?)\)\),", js.text)
-condition, value = re.findall(r"var f=(.*?);.*?\(c,(0x[0-f]*)\)", js.text)[0]
-
-condition = re.sub(
-    r"parseInt\(N\((0x[0-f]*)\)\)", lambda N: f"cal({N.group(1)})", condition
+manga_read_js = visit(f"{DOMAIN}/js/manga.read.js")
+aK = deque(
+    [
+        i[1:-1]
+        for i in re.findall(r"var aK=\[(.*?)\];", manga_read_js.text)[0].split(",")
+    ]
 )
-value = int(value, 0)
+offset = re.findall(r"f=f-(0x[0-f]*);", manga_read_js.text)[0]
+condition, value = re.findall(r"var f=(.*?);.*?\(c,(0x[0-f]*)\)", manga_read_js.text)[0]
+
+table = re.findall(
+    r"G==ag\((0x[0-9a-f]*?)\)&&\(I=ag\((0x[0-9a-f]*?)\)\),", manga_read_js.text
+)
+
+offset = int(offset, 16)
+condition = re.sub(
+    r"parseInt\(N\((0x[0-f]*)\)\)", lambda N: f"N({N.group(1)})", condition
+)
+
+value = int(value, 16)
+
+manga_read_js_decode_const = lambda N: decode_const(aK[N - offset])
+
+N = lambda N: int(re.match(r"^\d+", manga_read_js_decode_const(N).decode()).group())
 
 while True:
     try:
@@ -78,7 +100,55 @@ while True:
     except:
         aK.rotate(-1)
 
-KEY_TABLE = {decode_str(int(k, 0)).decode(): decode_str(int(v, 0)) for k, v in table}
+KEY_TABLE = {
+    manga_read_js_decode_const(int(k, 16)).decode(): manga_read_js_decode_const(
+        int(v, 16)
+    )
+    for k, v in table
+}
+
+
+custom_js = visit(f"{DOMAIN}/js/custom.js")
+iW = deque(
+    [i[1:-1] for i in re.findall(r"var iW=\[(.*?)\];", custom_js.text)[0].split(",")]
+)
+offset = re.findall(r"f=f-(0x[0-f]*);", custom_js.text)[0]
+condition, value = re.findall(r"var g=(.*?);.*?\(c,(0x[0-f]*)\)", custom_js.text)[0]
+
+offset = int(offset, 16)
+condition = re.sub(
+    r"parseInt\([a-z]{2}\((0x[0-f]*),\'([A-Za-z0-9+^/]{4})\'\)\)",
+    lambda N: f'ad({N.group(1)}, "{N.group(2)}")',
+    condition,
+)
+condition = re.sub(
+    r"parseInt\([a-z]{2}\((0x[0-f]*)\)\)",
+    lambda N: f"ae({N.group(1)})",
+    condition,
+)
+
+value = int(value, 16)
+
+custom_js_decode_const = lambda m: decode_const(iW[m - offset])
+
+ad = lambda a, b: int(
+    re.match(
+        r"^\d+",
+        decrypt_arc4(
+            custom_js_decode_const(a).decode(encoding="", errors="ignore"), b
+        ).decode(),
+    ).group()
+)  # decode need to be fixed
+ae = lambda a: int(re.match(r"^\d+", custom_js_decode_const(a).decode()).group())
+
+while True:
+    try:
+        if eval(condition) == value:
+            break
+        else:
+            iW.rotate(-1)
+    except:
+        iW.rotate(-1)
 
 pool = ThreadPoolExecutor(max_workers=4)
 
@@ -199,4 +269,4 @@ def auto(id, cname):
     os.chdir("..")
 
 
-auto(114514, 'example')  # 第一个参数为漫画id，第二个为目录名称
+auto(114514, "example")  # 第一个参数为漫画id，第二个为目录名称
