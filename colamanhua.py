@@ -24,24 +24,26 @@ def download(url, Referer):
     )
 
 
-def decrypt_ecb(data, key):
+def decrypt_aes_ecb(data, key):
     cipher = AES.new(key, AES.MODE_ECB)
     return unpad(cipher.decrypt(data), AES.block_size)
 
 
-def decrypt_cbc(data, key):
+def decrypt_aes_cbc(data, key):
     cipher = AES.new(key, AES.MODE_CBC, iv=b"0000000000000000")
     return unpad(cipher.decrypt(data), AES.block_size)
 
 
-def decrypt_arc4(data, key):
-    print(data)
-    data = bytes(data, encoding="utf-8")
+def decrypt_arc4(raw, key):
+    raw = bytes(raw.decode(), encoding="utf-16-le")
+    data = bytearray(len(raw) // 2)
+    for i in range(0, len(raw), 2):
+        data[i // 2] = raw[i]
+
     key = bytes(key, encoding="utf-8")
     cipher = ARC4.new(key)
 
-    a = cipher.decrypt(data)
-    return a
+    return cipher.decrypt(data)
 
 
 def decode_const(data):
@@ -63,7 +65,7 @@ def E_trans_to_C(string):
 def downloadImage(page_filename, page_url, Referer, key):
     res = download(page_url, Referer)
     file = open(page_filename, "wb")
-    file.write(decrypt_cbc(res.content, key))
+    file.write(decrypt_aes_cbc(res.content, key))
 
 
 manga_read_js = visit(f"{DOMAIN}/js/manga.read.js")
@@ -82,14 +84,15 @@ table = re.findall(
 
 offset = int(offset, 16)
 condition = re.sub(
-    r"parseInt\(N\((0x[0-f]*)\)\)", lambda N: f"N({N.group(1)})", condition
+    r"parseInt\(N\((0x[0-f]*)\)\)", lambda N: f"parseInt(N({N.group(1)}))", condition
 )
 
 value = int(value, 16)
 
 manga_read_js_decode_const = lambda N: decode_const(aK[N - offset])
 
-N = lambda N: int(re.match(r"^\d+", manga_read_js_decode_const(N).decode()).group())
+N = lambda N: manga_read_js_decode_const(N).decode()
+parseInt = lambda i: int(re.search(r"^\d+", i).group())
 
 while True:
     try:
@@ -107,48 +110,75 @@ KEY_TABLE = {
     for k, v in table
 }
 
-
 custom_js = visit(f"{DOMAIN}/js/custom.js")
-iW = deque(
-    [i[1:-1] for i in re.findall(r"var iW=\[(.*?)\];", custom_js.text)[0].split(",")]
+c = deque(
+    [
+        i[1:-1]
+        for i in re.findall(
+            r"function c\(\){var [a-zA-Z][0-9a-zA-Z]=\[(.*?)\];c=function\(\){return [a-zA-Z][0-9a-zA-Z];};return c\(\);}",
+            custom_js.text,
+        )[0].split(",")
+    ]
 )
-offset = re.findall(r"f=f-(0x[0-f]*);", custom_js.text)[0]
-condition, value = re.findall(r"var g=(.*?);.*?\(c,(0x[0-f]*)\)", custom_js.text)[0]
+offset = re.findall(r"f=f-(0x[0-f]*?);", custom_js.text)[0]
+condition, value = re.findall(r"var g=(.*?);.*?\(c,(0x[0-f]*?)\)", custom_js.text)[0]
 
 offset = int(offset, 16)
 condition = re.sub(
-    r"parseInt\([a-z]{2}\((0x[0-f]*),\'([A-Za-z0-9+^/]{4})\'\)\)",
-    lambda N: f'ad({N.group(1)}, "{N.group(2)}")',
+    r"parseInt\([a-z]{2}\((0x[0-f]*?)\)\)",
+    lambda N: f"parseInt(d({N.group(1)}))",
     condition,
 )
 condition = re.sub(
-    r"parseInt\([a-z]{2}\((0x[0-f]*)\)\)",
-    lambda N: f"ae({N.group(1)})",
+    r"parseInt\([a-z]{2}\((0x[0-f]*?),\'(.{4})\'\)\)",
+    lambda N: f'parseInt(e({N.group(1)}, "{N.group(2)}"))',
     condition,
 )
 
 value = int(value, 16)
 
-custom_js_decode_const = lambda m: decode_const(iW[m - offset])
+custom_js_decode_const = lambda m: decode_const(c[m - offset])
 
-ad = lambda a, b: int(
-    re.match(
-        r"^\d+",
-        decrypt_arc4(
-            custom_js_decode_const(a).decode(encoding="", errors="ignore"), b
-        ).decode(),
-    ).group()
-)  # decode need to be fixed
-ae = lambda a: int(re.match(r"^\d+", custom_js_decode_const(a).decode()).group())
+d = lambda a: custom_js_decode_const(a).decode(errors="ignore")
+e = lambda a, b: decrypt_arc4(custom_js_decode_const(a), b).decode(errors="ignore")
 
 while True:
     try:
         if eval(condition) == value:
             break
         else:
-            iW.rotate(-1)
+            c.rotate(-1)
     except:
-        iW.rotate(-1)
+        c.rotate(-1)
+
+v1, v2, v3, v4 = re.findall(r"var (.{2})=(.{2}),(.{2})=e,(f={.*?});", custom_js.text)[0]
+exec(f"{v1}=d\n{v3}=e")
+exec(re.sub(r"function\(.*?\)\{return .*?;\}", "''", v4))
+
+v1, v2, v3, v4, v5, v6 = re.findall(
+    r"var (.{2})=(.{2}),(.{2})=(.{2});(.(?!=var (.{2})=(.{2}),(.{2})=(.{2});))*?var q=__cad\[.{5,25}\]\(\),r=mh_info\[.{5,25}\],s=f\[.{5,25}\]\(q\[0x0\],r\[.{5,25}\]\(\)\),t=f\[.{5,25}\]\(q\[0x1\],r\[.{5,25}\]\(\)\),u=(f\[.{5,25}\]),v;.*?u=(f\[.{5,25}\]);",
+    custom_js.text,
+)[0]
+exec(f"{v1}={v2}\n{v3}={v4}")
+C_DATA_KEY1 = eval(re.findall(r"var h=(f\[.*\]),i;", custom_js.text)[0])
+C_DATA_KEY2 = eval(
+    re.findall(
+        r"i=window\[.{5,25}\]\[.{5,25}\]\((f\[.{5,25}\]),window\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\(window\[.{5,25}\]\)\[.{5,25}\]\(window\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\)\);",
+        custom_js.text,
+    )[0]
+)
+ENC_CODE1_KEY1 = eval(v6)
+ENC_CODE1_KEY2 = b""
+ENC_CODE2_KEY1 = eval(v5)
+ENC_CODE2_KEY2 = b""
+IMG_KEY_KEY1 = eval(
+    re.findall(r"var i=(a\[[a-zA-Z][a-zA-Z0-9]\(.{2,15}\)\]);", custom_js.text)[0]
+)
+IMG_KEY_KEY2 = eval(
+    re.findall(
+        r"a\[.{5,25}\]\(__cad\[.{5,25}\],0x2\)&&\((i=a\[.{5,25}\])\);", custom_js.text
+    )[0]
+)
 
 pool = ThreadPoolExecutor(max_workers=4)
 
@@ -183,9 +213,9 @@ def auto(id, cname):
 
         C_DATA = base64.b64decode(base64.b64decode(C_DATA).decode())
         try:
-            mh_info = decrypt_ecb(C_DATA, b"NhDvbPWFVjc326Qs").decode()
+            mh_info = decrypt_aes_ecb(C_DATA, C_DATA_KEY1).decode()
         except:
-            mh_info = decrypt_ecb(C_DATA, b"P3XtlTunjedzg5lw").decode()
+            mh_info = decrypt_aes_ecb(C_DATA, C_DATA_KEY2).decode()
 
         pattern = re.compile(
             r'startimg:([0-9]*),.*?enc_code1:"(.*?)",.*?enc_code2:"(.*?)",.*?keyType:"(.*?)",.*?imgKey:"(.*?)"',
@@ -196,41 +226,41 @@ def auto(id, cname):
 
         enc_code2 = base64.b64decode(base64.b64decode(enc_code2).decode())
         try:
-            _tka_ = decrypt_ecb(
+            _tka_ = decrypt_aes_ecb(
                 enc_code2,
-                b"q50Fah4uhqkyChdP",
+                ENC_CODE2_KEY1,
             ).decode()  # _tka_ + mh_info["pageid"]
         except:
-            _tka_ = decrypt_ecb(
+            _tka_ = decrypt_aes_ecb(
                 enc_code2,
-                b"0aW5swj3TBKSrfBU",
+                ENC_CODE2_KEY2,
             ).decode(
                 "gbk"
             )  # _tka_ + mh_info["pageid"]
 
         enc_code1 = base64.b64decode(base64.b64decode(enc_code1).decode())
         try:
-            _tkb_ = decrypt_ecb(
+            _tkb_ = decrypt_aes_ecb(
                 enc_code1,
-                b"n3MGPalwQZBOvr6t",
+                ENC_CODE1_KEY1,
             ).decode()  # _tkb_ + mh_info["pageid"]
         except:
-            _tkb_ = decrypt_ecb(
+            _tkb_ = decrypt_aes_ecb(
                 enc_code1,
-                b"7bxIyR0nLydU9vlQ",
+                ENC_CODE1_KEY2,
             ).decode()  # _tkb_ + mh_info["pageid"]
 
         if imgKey != "":
             imgKey = base64.b64decode(imgKey)
             try:
-                imgKey = decrypt_ecb(
+                imgKey = decrypt_aes_ecb(
                     imgKey,
-                    b"P3XtlTunjedzg5lw",
+                    IMG_KEY_KEY1,
                 )
             except:
-                imgKey = decrypt_ecb(
+                imgKey = decrypt_aes_ecb(
                     imgKey,
-                    b"NhDvbPWFVjc326Qs",
+                    IMG_KEY_KEY2,
                 )
 
         for page in range(int(startimg), int(_tkb_) + 1):
