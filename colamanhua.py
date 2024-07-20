@@ -151,25 +151,28 @@ while True:
     except:
         c.rotate(-1)
 
-v1, v2, v3, v4 = re.findall(r"var (.{2})=(.{2}),(.{2})=e,(f={.*?});", custom_js.text)[0]
-exec(f"{v1}=d\n{v3}=e")
-exec(re.sub(r"function\(.*?\)\{return .*?;\}", "''", v4))
+v1, v2 = re.findall(r"^var (.{2}=.),(.{2}=.);", custom_js.text)[0]
+exec(f"{v1}\n{v2}")
 
-v1, v2, v3, v4, v5, v6 = re.findall(
-    r"var (.{2})=(.{2}),(.{2})=(.{2});(.(?!=var (.{2})=(.{2}),(.{2})=(.{2});))*?var q=__cad\[.{5,25}\]\(\),r=mh_info\[.{5,25}\],s=f\[.{5,25}\]\(q\[0x0\],r\[.{5,25}\]\(\)\),t=f\[.{5,25}\]\(q\[0x1\],r\[.{5,25}\]\(\)\),u=(f\[.{5,25}\]),v;.*?u=(f\[.{5,25}\]);",
-    custom_js.text,
+v1, v2, v3, v4 = re.findall(
+    r"function\(\){var (.{2}=.{2}),(.{2}=.),(f=\{.*?\});(.*?)\}\(\)", custom_js.text
 )[0]
-exec(f"{v1}={v2}\n{v3}={v4}")
-C_DATA_KEY1 = eval(re.findall(r"var h=(f\[.*\]),i;", custom_js.text)[0])
-C_DATA_KEY2 = eval(
-    re.findall(
-        r"i=window\[.{5,25}\]\[.{5,25}\]\((f\[.{5,25}\]),window\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\(window\[.{5,25}\]\)\[.{5,25}\]\(window\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\)\);",
-        custom_js.text,
-    )[0]
-)
-ENC_CODE1_KEY1 = eval(v6)
+exec(f"{v1}\n{v2}")
+exec(re.sub(r"function\(.*?\)\{return .*?;\}", "''", v3))
+
+val = re.findall(r"var (.{2}=.{2}),(.{2}=.{2})", v4)
+for v1, v2 in val:
+    exec(f"{v1}\n{v2}")
+
+a1, a2, a3, a4 = re.findall(
+    r"var h=(f\[.*\]),i;.*?i=window\[.{5,25}\]\[.{5,25}\]\((f\[.{5,25}\]),window\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\(window\[.{5,25}\]\)\[.{5,25}\]\(window\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\[.{5,25}\]\)\);.*?var r=__cad\[.{5,25}\]\(\),s=mh_info\[.{5,25}\],t=f\[.{5,25}\]\(r\[0x0\],s\[.{5,25}\]\(\)\),u=f\[.{5,25}\]\(r\[0x1\],s\[.{5,25}\]\(\)\),v=(f\[.{5,25}\]),w;.*?v=(f\[.{5,25}\]);",
+    v4,
+)[0]
+C_DATA_KEY1 = eval(a1)
+C_DATA_KEY2 = eval(a2)
+ENC_CODE1_KEY1 = eval(a4)
 ENC_CODE1_KEY2 = b""
-ENC_CODE2_KEY1 = eval(v5)
+ENC_CODE2_KEY1 = eval(a3)
 ENC_CODE2_KEY2 = b""
 IMG_KEY_KEY1 = eval(
     re.findall(r"var i=(a\[[a-zA-Z][a-zA-Z0-9]\(.{2,15}\)\]);", custom_js.text)[0]
