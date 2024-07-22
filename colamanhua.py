@@ -25,6 +25,7 @@ def download(url, Referer):
 
 
 def decrypt_aes_ecb(data, key):
+    key = bytes(key, encoding="utf-8")
     cipher = AES.new(key, AES.MODE_ECB)
     return unpad(cipher.decrypt(data), AES.block_size)
 
@@ -64,8 +65,8 @@ def E_trans_to_C(string):
 
 def downloadImage(page_filename, page_url, Referer, key):
     res = download(page_url, Referer)
-    file = open(page_filename, "wb")
-    file.write(decrypt_aes_cbc(res.content, key))
+    with open(page_filename, "wb") as file:
+        file.write(decrypt_aes_cbc(res.content, key))
 
 
 manga_read_js = visit(f"{DOMAIN}/js/manga.read.js")
@@ -310,4 +311,4 @@ def auto(id, cname):
     os.chdir("..")
 
 
-auto(114514, "example")  # 第一个参数为漫画id，第二个为目录名称
+auto("ll4514", "example")  # 第一个参数为漫画id，第二个为目录名称
